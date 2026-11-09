@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>The Unpredictable World</title>
+    <style>
+      :root {
+        --b1: #020b2a;
+        --b2: #0a2a6b;
+        --ac: #4fc3ff;
+        --tx: #e8f4ff;
+        --font: "Trebuchet MS", system-ui, sans-serif;
+        box-sizing: border-box;
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        background: radial-gradient(
+          circle at 50% 40%,
+          var(--b2),
+          var(--b1) 75%
+        );
+        color: var(--tx);
+        font-family: var(--font);
+        overflow: hidden;
+        position: relative;
+      }
+      canvas {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+      }
+      #stage {
+        position: relative;
+        z-index: 2;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+        padding: 24px;
+        box-sizing: border-box;
+        pointer-events: none;
+      }
+      #stage > * {
+        pointer-events: auto;
+      }
+      #stage.center {
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      #stage.left {
+        align-items: flex-start;
+        justify-content: center;
+        text-align: left;
+        padding-left: 8vw;
+      }
+      #stage.bottom {
+        align-items: center;
+        justify-content: flex-end;
+        text-align: center;
+        padding-bottom: 12vh;
+      }
+      #stage.right {
+        align-items: flex-end;
+        justify-content: flex-start;
+        text-align: right;
+        padding-top: 14vh;
+        padding-right: 8vw;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(28px, 6vw, 64px);
+        line-height: 1.15;
+        max-width: 16em;
+        color: var(--tx);
+        text-shadow:
+          0 0 12px var(--ac),
+          0 0 36px var(--ac);
+        min-height: 1.2em;
+        animation: pulse 3s ease-in-out infinite;
+      }
+      h1::after {
+        content: "▌";
+        color: var(--ac);
+        animation: blink 1s steps(2) infinite;
+      }
+      @keyframes pulse {
+        50% {
+          text-shadow:
+            0 0 6px var(--ac),
+            0 0 18px var(--ac);
+        }
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
+      .sub {
+        opacity: 0.75;
+        font-size: clamp(13px, 2vw, 16px);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      button {
+        font: inherit;
+        cursor: pointer;
+        color: var(--tx);
+        background: transparent;
+        border: 2px solid var(--ac);
+        border-radius: 999px;
+        padding: 14px 28px;
+        font-size: 16px;
+        box-shadow:
+          0 0 18px var(--ac),
+          inset 0 0 12px rgba(255, 255, 255, 0.08);
+        transition:
+          transform 0.2s,
+          background 0.2s;
+      }
+      button:hover {
+        transform: scale(1.07);
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        justify-content: inherit;
+      }
+      button.small {
+        padding: 7px 14px;
+        font-size: 12px;
+        box-shadow: none;
+        opacity: 0.7;
+      }
+      #foot {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+        text-align: center;
+        font-size: 12px;
+        opacity: 0.55;
+        z-index: 3;
+        pointer-events: none;
+      }
+      #dot {
+        position: fixed;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--ac);
+        opacity: 0.12;
+        z-index: 4;
+        cursor: pointer;
+        transition: opacity 0.3s;
+      }
+      #dot:hover {
+        opacity: 0.7;
+      }
+      #toast {
+        position: fixed;
+        left: 50%;
+        top: calc(18px + env(safe-area-inset-top, 0px));
+        transform: translate(-50%, -140%);
+        background: rgba(0, 0, 0, 0.75);
+        border: 1px solid var(--ac);
+        color: #fff;
+        padding: 12px 20px;
+        border-radius: 12px;
+        z-index: 9;
+        transition: transform 0.5s;
+        max-width: 88vw;
+        text-align: center;
+        box-shadow: 0 0 20px var(--ac);
+      }
+      #toast.show {
+        transform: translate(-50%, 0);
+      }
+      #flash {
+        position: fixed;
+        inset: 0;
+        background: #fff;
+        opacity: 0;
+        pointer-events: none;
+        z-index: 8;
+        transition: opacity 0.45s;
+      }
+      #flash.on {
+        opacity: 1;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color-scheme: dark;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <div id="stage" class="center">
+      <div class="sub" id="wname"></div>
+      <h1 id="msg"></h1>
+      <div class="row">
+        <button id="warp">✦ Create another experience</button>
+        <button id="rm" class="small">Reduce motion: off</button>
+      </div>
+    </div>
+    <div id="dot" title="?"></div>
+    <div id="foot"></div>
+    <div id="toast"></div>
+    <div id="flash"></div>
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const WORLDS = [
+        {
+          n: "Deep Blue",
+          b: ["#020b2a", "#0a2a6b"],
+          a: "#4fc3ff",
+          t: "#e8f4ff",
+          f: '"Trebuchet MS",sans-serif',
+          m: "stars",
+          l: "center",
+          msgs: [
+            "Welcome to another dimension.",
+            "The stars noticed you.",
+            "Move your mouse. Space listens.",
+            "Nothing here is where you left it.",
+          ],
+        },
+        {
+          n: "Purple Nebula",
+          b: ["#12002b", "#4b1189"],
+          a: "#d58bff",
+          t: "#f6e9ff",
+          f: "Georgia,serif",
+          m: "bubbles",
+          l: "left",
+          msgs: [
+            "You drifted into a different night.",
+            "Pop a bubble. Make a wish.",
+            "Dreams are rendered here.",
+            "Different colour. Different you?",
+          ],
+        },
+        {
+          n: "Green Matrix",
+          b: ["#000d04", "#02351a"],
+          a: "#3dff8a",
+          t: "#d6ffe6",
+          f: '"Courier New",monospace',
+          m: "matrix",
+          l: "bottom",
+          msgs: [
+            "Wake up. The page has changed.",
+            "There is no fixed layout.",
+            "Reality.exe is running.",
+            "Type the word: portal",
+          ],
+        },
+        {
+          n: "Ember Storm",
+          b: ["#1a0500", "#6b1b00"],
+          a: "#ffa13d",
+          t: "#fff1e0",
+          f: 'Impact,"Arial Narrow",sans-serif',
+          m: "embers",
+          l: "right",
+          msgs: [
+            "It got warm in here.",
+            "Click anywhere. Watch sparks fly.",
+            "This world burns brighter.",
+            "Every visit is a new fire.",
+          ],
+        },
+        {
+          n: "Ocean Pulse",
+          b: ["#001a24", "#005b73"],
+          a: "#5ef2ff",
+          t: "#e6fdff",
+          f: '"Gill Sans","Trebuchet MS",sans-serif',
+          m: "rings",
+          l: "center",
+          msgs: [
+            "Ripples travel further than you think.",
+            "Touch the water.",
+            "You are 10,000 leagues under the page.",
+            "Calm on top. Strange below.",
+          ],
+        },
+        {
+          n: "Firefly Forest",
+          b: ["#0a1a05", "#2a4a0b"],
+          a: "#e8ff4f",
+          t: "#f7ffd9",
+          f: "Palatino,Georgia,serif",
+          m: "fireflies",
+          l: "left",
+          msgs: [
+            "The lights follow you.",
+            "Stay a while.",
+            "Shh. The forest is listening.",
+            "Something glowing is curious about you.",
+          ],
+        },
+      ];
+      const SECRET = {
+        n: "Secret: Golden Void",
+        b: ["#0a0800", "#3b2d00"],
+        a: "#ffd54a",
+        t: "#fff6d1",
+        f: "Georgia,serif",
+        m: "stars",
+        l: "center",
+        msgs: [
+          "You found the hidden world. Few do.",
+          "Gold is just stars that stayed.",
+          "Explorer. Yes, you.",
+        ],
+      };
+
+      // storage helpers
+      const ls = {
+        get(k, d) {
+          try {
+            const v = localStorage.getItem(k);
+            return v === null ? d : JSON.parse(v);
+          } catch (e) {
+            return d;
+          }
+        },
+        set(k, v) {
+          try {
+            localStorage.setItem(k, JSON.stringify(v));
+          } catch (e) {}
+        },
+      };
+      let visits = ls.get("uw_visits", 0) + 1;
+      ls.set("uw_visits", visits);
+      let last = ls.get("uw_last", -1),
+        unlocked = ls.get("uw_secret", false),
+        reduce = ls.get("uw_rm", false);
+      let cur = null,
+        idx = 0,
+        count = 0,
+        typing = 0;
+
+      // canvas
+      const cv = $("c"),
+        x = cv.getContext("2d");
+      let w,
+        h,
+        P = [],
+        S = [],
+        R = [],
+        drops = [],
+        mx = -999,
+        my = -999,
+        mode = "stars",
+        ac = "#fff";
+      function size() {
+        w = cv.width = innerWidth;
+        h = cv.height = innerHeight;
+        seed();
+      }
+      addEventListener("resize", size);
+      function seed() {
+        P = [];
+        R = [];
+        x.clearRect(0, 0, w, h);
+        if (mode === "matrix") {
+          drops = Array.from(
+            { length: Math.ceil(w / 18) },
+            () => Math.random() * -40,
+          );
+          return;
+        }
+        const n = mode === "rings" ? 0 : mode === "fireflies" ? 45 : 100;
+        for (let i = 0; i < n; i++)
+          P.push({
+            x: Math.random() * w,
+            y: Math.random() * h,
+            vx: (Math.random() - 0.5) * 0.6,
+            vy:
+              mode === "bubbles"
+                ? -Math.random() - 0.3
+                : mode === "embers"
+                  ? -Math.random() * 1.5 - 0.4
+                  : (Math.random() - 0.5) * 0.4,
+            r: Math.random() * 3 + 1,
+            p: Math.random() * 6.28,
+            z: Math.random() + 0.3,
+          });
+      }
+      function spark(px, py, n) {
+        for (let i = 0; i < n; i++) {
+          const a = Math.random() * 6.28,
+            s = Math.random() * 4 + 1;
+          S.push({
+            x: px,
+            y: py,
+            vx: Math.cos(a) * s,
+            vy: Math.sin(a) * s,
+            l: 1,
+          });
+        }
+      }
+      function frame(t) {
+        const k = reduce ? 0.15 : 1;
+        if (mode === "matrix") {
+          x.fillStyle = "rgba(0,10,4,.14)";
+          x.fillRect(0, 0, w, h);
+          x.fillStyle = ac;
+          x.font = "16px monospace";
+          drops.forEach((d, i) => {
+            x.fillText(
+              String.fromCharCode((0x30a0 + Math.random() * 60) | 0),
+              i * 18,
+              d * 18,
+            );
+            if (d * 18 > h && Math.random() > 0.975) drops[i] = 0;
+            drops[i] += 0.5 * k;
+            if (Math.abs(i * 18 - mx) < 40 && Math.abs(d * 18 - my) < 60)
+              drops[i] -= 0.6;
+          });
+        } else {
+          x.clearRect(0, 0, w, h);
+          if (mode === "rings") {
+            if (Math.random() < 0.03 * k)
+              R.push({ x: Math.random() * w, y: Math.random() * h, r: 0 });
+            R.forEach((o) => {
+              o.r += 1.5 * k;
+              x.strokeStyle = ac;
+              x.globalAlpha = Math.max(0, 1 - o.r / 180);
+              x.lineWidth = 2;
+              x.beginPath();
+              x.arc(o.x, o.y, o.r, 0, 6.28);
+              x.stroke();
+            });
+            x.globalAlpha = 1;
+            R = R.filter((o) => o.r < 180);
+          }
+          P.forEach((p) => {
+            const dx = p.x - mx,
+              dy = p.y - my,
+              d = Math.hypot(dx, dy) || 1;
+            if (mode === "fireflies") {
+              p.vx +=
+                Math.cos(t / 900 + p.p) * 0.02 -
+                (dx / d) * (d < 260 ? 0.012 : 0);
+              p.vy +=
+                Math.sin(t / 800 + p.p) * 0.02 -
+                (dy / d) * (d < 260 ? 0.012 : 0);
+              p.vx *= 0.98;
+              p.vy *= 0.98;
+            } else if (d < 110) {
+              p.x += (dx / d) * 2.2 * k;
+              p.y += (dy / d) * 2.2 * k;
+            }
+            p.x += p.vx * k * p.z;
+            p.y += p.vy * k * p.z + (mode === "embers" ? 0 : 0);
+            if (mode === "embers") p.x += Math.sin(t / 500 + p.p) * 0.5 * k;
+            if (p.x < -10) p.x = w + 10;
+            if (p.x > w + 10) p.x = -10;
+            if (p.y < -10) p.y = h + 10;
+            if (p.y > h + 10) p.y = -10;
+            x.globalAlpha = 0.5 + 0.5 * Math.sin(t / 600 + p.p);
+            x.fillStyle = ac;
+            x.shadowColor = ac;
+            x.shadowBlur = mode === "stars" ? 6 : 14;
+            x.beginPath();
+            if (mode === "bubbles") {
+              x.globalAlpha = 0.35;
+              x.strokeStyle = ac;
+              x.lineWidth = 1.5;
+              x.arc(p.x, p.y, p.r * 5, 0, 6.28);
+              x.stroke();
+            } else {
+              x.arc(p.x, p.y, p.r * (mode === "fireflies" ? 1.6 : 1), 0, 6.28);
+              x.fill();
+            }
+          });
+          x.shadowBlur = 0;
+          x.globalAlpha = 1;
+        }
+        S.forEach((s) => {
+          s.x += s.vx;
+          s.y += s.vy;
+          s.vy += 0.05;
+          s.l -= 0.02;
+          x.globalAlpha = Math.max(0, s.l);
+          x.fillStyle = ac;
+          x.fillRect(s.x, s.y, 3, 3);
+        });
+        x.globalAlpha = 1;
+        S = S.filter((s) => s.l > 0);
+        requestAnimationFrame(frame);
+      }
+      addEventListener("pointermove", (e) => {
+        mx = e.clientX;
+        my = e.clientY;
+      });
+      addEventListener("pointerleave", () => {
+        mx = my = -999;
+      });
+      addEventListener("pointerdown", (e) => {
+        if (e.target.closest("button,#dot")) return;
+        spark(e.clientX, e.clientY, 18);
+        if (mode === "bubbles")
+          P.forEach((p) => {
+            if (Math.hypot(p.x - e.clientX, p.y - e.clientY) < p.r * 5 + 10) {
+              spark(p.x, p.y, 10);
+              p.y = h + 20;
+              p.x = Math.random() * w;
+            }
+          });
+        if (mode === "rings") R.push({ x: e.clientX, y: e.clientY, r: 0 });
+      });
+
+      // world logic
+      function toast(m) {
+        const t = $("toast");
+        t.textContent = m;
+        t.classList.add("show");
+        clearTimeout(toast.t);
+        toast.t = setTimeout(() => t.classList.remove("show"), 3500);
+      }
+      function type(text) {
+        const el = $("msg");
+        const id = ++typing;
+        el.textContent = "";
+        if (reduce) {
+          el.textContent = text;
+          return;
+        }
+        let i = 0;
+        (function s() {
+          if (id !== typing) return;
+          el.textContent = text.slice(0, ++i);
+          if (i < text.length) setTimeout(s, 35);
+        })();
+      }
+      function apply(wd) {
+        const r = document.documentElement.style;
+        r.setProperty("--b1", wd.b[0]);
+        r.setProperty("--b2", wd.b[1]);
+        r.setProperty("--ac", wd.a);
+        r.setProperty("--tx", wd.t);
+        r.setProperty("--font", wd.f);
+        $("stage").className = wd.l;
+        mode = wd.m;
+        ac = wd.a;
+        seed();
+        $("wname").textContent = wd.n;
+        type(wd.msgs[(Math.random() * wd.msgs.length) | 0]);
+        const d = $("dot");
+        d.style.left = 10 + Math.random() * 80 + "vw";
+        d.style.top = 10 + Math.random() * 75 + "vh";
+        count = 0;
+        $("foot").textContent =
+          "World #" + ++idx + " this session · Visit " + visits + " overall";
+      }
+      function pickWorld() {
+        const pool = WORLDS.map((_, i) => i).filter((i) => i !== last);
+        if (unlocked && Math.random() < 0.2) {
+          last = -2;
+          ls.set("uw_last", last);
+          return SECRET;
+        }
+        const i = pool[(Math.random() * pool.length) | 0];
+        last = i;
+        ls.set("uw_last", last);
+        return WORLDS[i];
+      }
+      function warp() {
+        const f = $("flash");
+        f.style.background = ac;
+        f.classList.add("on");
+        setTimeout(() => {
+          apply(pickWorld());
+          f.classList.remove("on");
+        }, 450);
+      }
+      $("warp").onclick = warp;
+      $("rm").onclick = () => {
+        reduce = !reduce;
+        ls.set("uw_rm", reduce);
+        $("rm").textContent = "Reduce motion: " + (reduce ? "on" : "off");
+      };
+      $("rm").textContent = "Reduce motion: " + (reduce ? "on" : "off");
+
+      // hidden surprises
+      $("dot").onclick = () => {
+        count++;
+        spark(innerWidth / 2, innerHeight / 2, 6);
+        if (count < 5) {
+          toast("Hmm... " + (5 - count) + " more?");
+          return;
+        }
+        count = 0;
+        if (!unlocked) {
+          unlocked = true;
+          ls.set("uw_secret", true);
+          toast(
+            "🔓 Secret world unlocked! It may appear on warps and future visits.",
+          );
+        } else toast("You already know the secret. 😉");
+        spark(innerWidth / 2, innerHeight / 2, 60);
+      };
+      let buf = "";
+      addEventListener("keydown", (e) => {
+        buf = (buf + e.key.toLowerCase()).slice(-6);
+        if (buf === "portal") {
+          toast("🌀 Portal opened.");
+          warp();
+        }
+      });
+      setTimeout(
+        () => toast("You stayed 30 seconds. The world noticed. ✨"),
+        30000,
+      );
+      if (visits === 3)
+        setTimeout(
+          () => toast("Third visit! Something small is hiding on every page…"),
+          4000,
+        );
+      if (visits >= 5 && !unlocked) {
+        unlocked = true;
+        ls.set("uw_secret", true);
+        setTimeout(
+          () => toast("🔓 Loyal visitor bonus: secret world unlocked!"),
+          6000,
+        );
+      }
+
+      size();
+      apply(pickWorld());
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>
